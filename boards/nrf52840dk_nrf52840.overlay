@@ -1,0 +1,13 @@
+&i2c0 {
+	compatible = "nordic,nrf-twis";
+	status = "okay";
+
+	/* pinctrl macros are waaaay too complicated. */
+	sda-pin = <26>;
+	scl-pin = <27>;
+
+	eeprom:24lc32a@50 {
+		label = "Emulated read-only 24LC32A";
+		reg = <0x50>;
+	};
+};
