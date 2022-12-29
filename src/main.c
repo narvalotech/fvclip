@@ -7,7 +7,11 @@
 
 #include <nrfx_twis.h>
 
-#define EEPROM_SIZE 1024
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(main, 4);
+
+#define EEPROM_SIZE 4096
+static uint16_t rom_addr;	/* current address pointer */
 static uint8_t rom_data[EEPROM_SIZE];
 
 #define CHECK(x) do {					\
@@ -23,11 +27,34 @@ void make_fake_data(uint8_t * data, size_t bytes)
 	}
 }
 
+void i2c_set_tx(uint8_t *buf, uint16_t len);
+
 /* Called when master initiates a read transaction */
 void i2c_tx_cb(uint8_t **buf, uint16_t *len)
 {
 	*buf = &rom_data[0];	/* TODO: use current address */
 	*len = EEPROM_SIZE;	/* TODO: handle rollover */
+}
+
+/* Called when master finishes a write transaction */
+void i2c_rx_cb(uint8_t *buf, uint16_t len)
+{
+	/* We should only ever receive 2 bytes: addr MSB and LSB */
+	LOG_HEXDUMP_DBG(buf, len, "I2C RX:");
+
+	if (len > 2) {
+		LOG_ERR("Got more than 2 bytes write, ignoring..");
+		return;
+	}
+
+	__ASSERT_NO_MSG(len == 2);
+	rom_addr = buf[0] << 8;
+	rom_addr |= buf[1];
+	rom_addr &= 0xFFF;	/* addr is only 12 bits */
+
+	LOG_INF("Changing address to 0x%x", rom_addr);
+
+	i2c_set_tx(&rom_data[rom_addr], EEPROM_SIZE - rom_addr);
 }
 
 /* TODO: move I2C driver to own file */
@@ -54,7 +81,7 @@ static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
 		break;
 
 	case NRFX_TWIS_EVT_READ_DONE:
-		printk("TWIS READ done\n");
+		LOG_DBG("TWIS READ done (%u bytes)", p_event->data.tx_amount);
 		break;
 
 	case NRFX_TWIS_EVT_WRITE_REQ:
@@ -67,23 +94,24 @@ static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
 		break;
 
 	case NRFX_TWIS_EVT_WRITE_DONE:
-		printk("TWIS WRITE done\n");
+		i2c_rx_cb(twis_rx_buffer, p_event->data.rx_amount);
+		LOG_DBG("TWIS WRITE done (%u bytes)", p_event->data.rx_amount);
 		break;
 
 	case NRFX_TWIS_EVT_READ_ERROR:
-		printk("TWIS READ ERROR\n");
+		LOG_DBG("TWIS READ ERROR");
 		break;
 
 	case NRFX_TWIS_EVT_WRITE_ERROR:
-		printk("TWIS WRITE ERROR\n");
+		LOG_DBG("TWIS WRITE ERROR");
 		break;
 
 	case NRFX_TWIS_EVT_GENERAL_ERROR:
-		printk("TWIS GENERAL ERROR\n");
+		LOG_DBG("TWIS GENERAL ERROR");
 		break;
 
 	default:
-		printk("TWIS default\n");
+		LOG_DBG("TWIS default");
 		break;
 	}
 }
@@ -105,13 +133,13 @@ void twis_init(void)
 
 	twis_config.interrupt_priority = DT_IRQ(DT_NODELABEL(i2c0), priority);
 
-	printk("I2C Slave:\n ADDR: 0x%x, SCL: %u, SDA: %u, int_pri: %u\n",
+	LOG_DBG("I2C Slave: ADDR: 0x%x, SCL: %u, SDA: %u, int_pri: %u\n",
 	       twis_config.addr[0], twis_config.scl, twis_config.sda, twis_config.interrupt_priority);
 
 	if (nrfx_twis_init(&twis_instance, &twis_config, twis_event_handler) == NRFX_SUCCESS) {
-		printk("nrfx TWIS initialized.\n");
+		LOG_DBG("nrfx TWIS initialized.");
 	} else {
-		printk("failed initializing TWIS\n");
+		LOG_DBG("failed initializing TWIS");
 	}
 
 	IRQ_CONNECT(DT_IRQN(DT_NODELABEL(i2c0)),
@@ -119,13 +147,28 @@ void twis_init(void)
 		    nrfx_isr, nrfx_twis_0_irq_handler, 0);
 }
 
+void i2c_set_tx(uint8_t *buf, uint16_t len)
+{
+	LOG_DBG("set TX: buf %p len %u", (void*)buf, len);
+
+	(void)nrfx_twis_tx_prepare(&twis_instance,
+				   &rom_data[rom_addr],
+				   EEPROM_SIZE - rom_addr);
+}
+
 void main(void)
 {
 	make_fake_data(rom_data, EEPROM_SIZE);
+	rom_addr = 0;
 
 	twis_init();
 	nrfx_twis_enable(&twis_instance);
 
-	printk("main done\n");
-	return;
+	/* Make the next read request read from the first EEPROM address. */
+	(void)nrfx_twis_tx_prepare(&twis_instance, rom_data, EEPROM_SIZE);
+
+	/* RX buffer always points to the same thing. */
+	(void)nrfx_twis_rx_prepare(&twis_instance, twis_rx_buffer, sizeof(twis_rx_buffer));
+
+	LOG_DBG("main done");
 }
