@@ -11,3 +11,17 @@
 		reg = <0x50>;
 	};
 };
+
+/ {
+	outputs {
+		compatible = "gpio-noinit";
+		gpio_s0		{gpios = < &gpio1 3 GPIO_ACTIVE_HIGH >;};
+		gpio_s1 	{gpios = < &gpio1 4 GPIO_ACTIVE_HIGH >;};
+		gpio_s2 	{gpios = < &gpio1 5 GPIO_ACTIVE_HIGH >;};
+		gpio_ext	{gpios = < &gpio1 6 GPIO_ACTIVE_HIGH >;};
+	};
+	inputs {
+		compatible = "gpio-noinit";
+		gpio_clip {gpios = < &gpio1 7 GPIO_ACTIVE_LOW >;};
+	};
+};

@@ -1,0 +1,19 @@
+# Needed because DTS rude goldberg machine doesn't work if no compatible is set.
+# This way we can use the DT_xx macros, without having driver code messing with
+# our pins at startup.
+
+description: GPIO GeNeRaL PuRpOsE binding
+
+compatible: "gpio-noinit"
+
+include: base.yaml
+
+child-binding:
+    description: GPIO No-init child node
+    properties:
+       gpios:
+          type: phandle-array
+          required: true
+       label:
+          type: string
+          description: Descriptive name of the IO pin
