@@ -20,43 +20,8 @@ const nrfx_twis_t twis_instance = NRFX_TWIS_INSTANCE(0);
 
 void i2c_set_tx(uint8_t *buf, uint16_t len)
 {
-	LOG_WRN("set TX: buf %p len %u", (void*)buf, len);
-
+	LOG_DBG("set TX: buf %p len %u", (void*)buf, len);
 	(void)nrfx_twis_tx_prepare(&twis_instance, buf, len);
-}
-
-/* Called when master initiates a read transaction and the I2C buffer is not
- * configured in the peripheral.
- */
-void i2c_tx_cb()
-{
-	/* When we get here, it's too late, FV1 will have failed to read the
-	 * program and will just hang. */
-	LOG_ERR("Ran out of TX data, reset addr to 0x00");
-	i2c_set_tx(rom.data, rom.size);
-}
-
-/* Called when master finishes a write transaction */
-void i2c_rx_cb(uint8_t *buf, uint16_t len)
-{
-	/* We should only ever receive 2 bytes: addr MSB and LSB */
-	LOG_HEXDUMP_DBG(buf, len, "I2C RX:");
-
-	/* FIXME: ignore, as we know exactly what address FV1 is requesting. */
-	return;
-
-	if (len > 2) {
-		LOG_ERR("Got more than 2 bytes write, ignoring..");
-		return;
-	}
-
-	__ASSERT_NO_MSG(len == 2);
-	rom.addr = buf[0] << 8;
-	rom.addr |= buf[1];
-	rom.addr &= 0xFFF;	/* addr is only 12 bits */
-
-	LOG_INF("Changing address to 0x%x", rom.addr);
-	i2c_set_tx(rom.data + rom.addr, rom.size - rom.addr);
 }
 
 static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
@@ -68,7 +33,10 @@ static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
 		 * buffers are ready when a read request comes in.
 		 */
 		if (p_event->data.buf_req) {
-			i2c_tx_cb();
+			/* When we get here, it's too late, FV1 will have failed to read the
+			 * program and will just hang until the next transaction. */
+			LOG_ERR("Ran out of TX data, reset addr to 0x00");
+			i2c_set_tx(rom.data, rom.size);
 		}
 		break;
 
@@ -86,7 +54,6 @@ static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
 		break;
 
 	case NRFX_TWIS_EVT_WRITE_DONE:
-		i2c_rx_cb(twis_rx_buffer, p_event->data.rx_amount);
 		LOG_DBG("TWIS WRITE done (%u bytes)", p_event->data.rx_amount);
 		break;
 
@@ -103,7 +70,7 @@ static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
 		break;
 
 	default:
-		LOG_DBG("TWIS default");
+		LOG_ERR("Unhandled TWI event");
 		break;
 	}
 }
@@ -125,7 +92,7 @@ void init_i2c()
 
 	twis_config.interrupt_priority = DT_IRQ(DT_NODELABEL(i2c0), priority);
 
-	LOG_DBG("I2C Slave: ADDR: 0x%x, SCL: %u, SDA: %u, int_pri: %u\n",
+	LOG_DBG("I2C Slave: ADDR: 0x%x, SCL: %u, SDA: %u, int_pri: %u",
 	       twis_config.addr[0], twis_config.scl, twis_config.sda, twis_config.interrupt_priority);
 
 	if (nrfx_twis_init(&twis_instance, &twis_config, twis_event_handler) == NRFX_SUCCESS) {
