@@ -6,14 +6,16 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(eeprom, 4);
 
-static uint16_t rom_addr;	/* current address pointer */
-static uint8_t *rom_data;
-static uint16_t rom_size;
+struct fakerom {
+	uint16_t addr;
+	uint16_t size;
+	uint8_t* data;
+};
 
-/* TODO: move I2C driver to own file */
-#define TWI_BUFFER_SIZE 8	/* Should match master's buffer size */
-static unsigned char twis_rx_buffer[TWI_BUFFER_SIZE];
+static struct fakerom rom;
 
+/* Should match master's buffer size */
+static unsigned char twis_rx_buffer[8];
 const nrfx_twis_t twis_instance = NRFX_TWIS_INSTANCE(0);
 
 void i2c_set_tx(uint8_t *buf, uint16_t len)
@@ -31,7 +33,7 @@ void i2c_tx_cb()
 	/* When we get here, it's too late, FV1 will have failed to read the
 	 * program and will just hang. */
 	LOG_ERR("Ran out of TX data, reset addr to 0x00");
-	i2c_set_tx(rom_data, rom_size);
+	i2c_set_tx(rom.data, rom.size);
 }
 
 /* Called when master finishes a write transaction */
@@ -49,12 +51,12 @@ void i2c_rx_cb(uint8_t *buf, uint16_t len)
 	}
 
 	__ASSERT_NO_MSG(len == 2);
-	rom_addr = buf[0] << 8;
-	rom_addr |= buf[1];
-	rom_addr &= 0xFFF;	/* addr is only 12 bits */
+	rom.addr = buf[0] << 8;
+	rom.addr |= buf[1];
+	rom.addr &= 0xFFF;	/* addr is only 12 bits */
 
-	LOG_INF("Changing address to 0x%x", rom_addr);
-	i2c_set_tx(rom_data + rom_addr, rom_size - rom_addr);
+	LOG_INF("Changing address to 0x%x", rom.addr);
+	i2c_set_tx(rom.data + rom.addr, rom.size - rom.addr);
 }
 
 static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
@@ -106,9 +108,8 @@ static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
 	}
 }
 
-void init_eeprom(uint8_t *buf, uint16_t size)
+void init_i2c()
 {
-	rom_size = size;
 	nrfx_twis_config_t twis_config;
 
 	memset(&twis_config, 0, sizeof(twis_config));
@@ -141,21 +142,23 @@ void init_eeprom(uint8_t *buf, uint16_t size)
 
 	/* RX buffer always points to the same thing. */
 	(void)nrfx_twis_rx_prepare(&twis_instance, twis_rx_buffer, sizeof(twis_rx_buffer));
-	LOG_DBG("eeprom init ok");
+}
 
-	/* Reset address pointer */
-	rom_addr = 0;
-	/* Store addr of external ROM buffer */
-	rom_data = buf;
+void init_eeprom(uint8_t *buf, uint16_t size)
+{
+	rom.addr = 0;
+	rom.size = size;
+	rom.data = buf;
 
 	/* Make the next read request read from the first EEPROM address. */
-	(void)nrfx_twis_tx_prepare(&twis_instance, rom_data, rom_size);
+	i2c_set_tx(rom.data + rom.addr, rom.size - rom.addr);
 
+	LOG_INF("eeprom init ok");
 }
 
 void set_offset_eeprom(uint16_t offset)
 {
-	rom_addr = offset;
-	LOG_INF("Changing address to 0x%x", rom_addr);
-	i2c_set_tx(rom_data + rom_addr, rom_size - rom_addr);
+	rom.addr = offset;
+	LOG_INF("Changing address to 0x%x", rom.addr);
+	i2c_set_tx(rom.data + rom.addr, rom.size - rom.addr);
 }
