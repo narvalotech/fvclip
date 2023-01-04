@@ -14,15 +14,10 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main, 4);
 
-#define EEPROM_SIZE 4096
+#define FV1_PGM_SIZE 512
+#define EEPROM_SIZE (FV1_PGM_SIZE * 2)
 static uint8_t rom_data[EEPROM_SIZE];
-
-void make_fake_data(uint8_t * data, size_t bytes)
-{
-	for (int a=0; a<bytes; a++) {
-		data[a] = a & 0xFF;
-	}
-}
+static uint8_t active_id;
 
 #define GPIO_S0_PIN DT_PHA(DT_PATH(outputs, gpio_s0), gpios, pin)
 #define GPIO_S1_PIN DT_PHA(DT_PATH(outputs, gpio_s1), gpios, pin)
@@ -75,37 +70,39 @@ void select_program_source(bool ext)
 	gpio_pin_set(port, GPIO_EXT_PIN, ext);
 }
 
-void load_program(uint8_t id)
+static inline void load_program(uint8_t * data, size_t bytes)
 {
-	set_offset_eeprom(id * 512);
-}
+	/* Write to the program bank not in use */
+	uint8_t id = active_id ? 0 : 1;
+	active_id = id;
 
-void load_rom(uint8_t * data, size_t bytes)
-{
-	/* Only copy the very first program */
-	memcpy(data, samples_00, sizeof(samples_00));
-	memcpy(data + 512, samples_04, sizeof(samples_04));
-	LOG_INF("Loaded %u bytes into fake-ROM", 1024);
+	__ASSERT_NO_MSG(bytes <= FV1_PGM_SIZE);
+
+	uint8_t *rom_addr = rom_data + (id * FV1_PGM_SIZE);
+	memcpy(rom_addr, data, bytes);
+	LOG_INF("loaded %p into ROM bank %u", (void*)data, id);
+
+	/* Tell EEPROM emulator to use the new bank */
+	init_eeprom(rom_addr, FV1_PGM_SIZE);
+
+	/* Trigger a reload from the FV-1 */
+	select_program_source(PGM_EXTERNAL);
+	select_program(id);
+	LOG_INF("activated new program");
 }
 
 void main(void)
 {
 	LOG_ERR("Bootup");
 
-	/* make_fake_data(rom_data, EEPROM_SIZE); */
-	load_rom(rom_data, EEPROM_SIZE);
-
 	init_eeprom(rom_data, EEPROM_SIZE);
 	init_gpios();
 
-	/* select_program_source(PGM_BUILTIN); */
-	select_program_source(PGM_EXTERNAL);
-	select_program(0);
+	while (1) {
+		load_program(samples_00, sizeof(samples_00));
+		k_sleep(K_SECONDS(10));
 
-	while (1)
-		for (int id=0; id < 2; id++) {
-			load_program(id);
-			select_program(id);
-			k_sleep(K_SECONDS(10));
-		}
+		load_program(samples_01, sizeof(samples_01));
+		k_sleep(K_SECONDS(10));
+	}
 }

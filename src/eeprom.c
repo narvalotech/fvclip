@@ -118,14 +118,7 @@ void init_eeprom(uint8_t *buf, uint16_t size)
 	rom.data = buf;
 
 	/* Make the next read request read from the first EEPROM address. */
-	i2c_set_tx(rom.data + rom.addr, rom.size - rom.addr);
+	i2c_set_tx(rom.data, rom.size);
 
 	LOG_INF("eeprom init ok");
-}
-
-void set_offset_eeprom(uint16_t offset)
-{
-	rom.addr = offset;
-	LOG_INF("Changing address to 0x%x", rom.addr);
-	i2c_set_tx(rom.data + rom.addr, rom.size - rom.addr);
 }
