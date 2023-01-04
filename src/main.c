@@ -19,6 +19,11 @@ LOG_MODULE_REGISTER(main, 4);
 static uint8_t rom_data[EEPROM_SIZE];
 static uint8_t active_id;
 
+enum {
+	PGM_BUILTIN = 0,
+	PGM_EXTERNAL,
+};
+
 #define GPIO_S0_PIN DT_PHA(DT_PATH(outputs, gpio_s0), gpios, pin)
 #define GPIO_S1_PIN DT_PHA(DT_PATH(outputs, gpio_s1), gpios, pin)
 #define GPIO_S2_PIN DT_PHA(DT_PATH(outputs, gpio_s2), gpios, pin)
@@ -56,11 +61,6 @@ void select_program(uint8_t id)
 	gpio_pin_set(port, GPIO_S1_PIN, id & 2);
 	gpio_pin_set(port, GPIO_S2_PIN, id & 4);
 }
-
-enum {
-	PGM_BUILTIN = 0,
-	PGM_EXTERNAL,
-};
 
 void select_program_source(bool ext)
 {
