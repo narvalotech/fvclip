@@ -18,20 +18,20 @@ const nrfx_twis_t twis_instance = NRFX_TWIS_INSTANCE(0);
 
 void i2c_set_tx(uint8_t *buf, uint16_t len)
 {
-	LOG_DBG("set TX: buf %p len %u", (void*)buf, len);
+	LOG_WRN("set TX: buf %p len %u", (void*)buf, len);
 
-	(void)nrfx_twis_tx_prepare(&twis_instance,
-				   &rom_data[rom_addr],
-				   rom_size - rom_addr);
+	(void)nrfx_twis_tx_prepare(&twis_instance, buf, len);
 }
 
 /* Called when master initiates a read transaction and the I2C buffer is not
  * configured in the peripheral.
  */
-void i2c_tx_cb(uint8_t **buf, uint16_t *len)
+void i2c_tx_cb()
 {
-	*buf = &rom_data[0];	/* TODO: use current address */
-	*len = rom_size;	/* TODO: handle rollover */
+	/* When we get here, it's too late, FV1 will have failed to read the
+	 * program and will just hang. */
+	LOG_ERR("Ran out of TX data, reset addr to 0x00");
+	i2c_set_tx(rom_data, rom_size);
 }
 
 /* Called when master finishes a write transaction */
@@ -39,6 +39,9 @@ void i2c_rx_cb(uint8_t *buf, uint16_t len)
 {
 	/* We should only ever receive 2 bytes: addr MSB and LSB */
 	LOG_HEXDUMP_DBG(buf, len, "I2C RX:");
+
+	/* FIXME: ignore, as we know exactly what address FV1 is requesting. */
+	return;
 
 	if (len > 2) {
 		LOG_ERR("Got more than 2 bytes write, ignoring..");
@@ -51,8 +54,7 @@ void i2c_rx_cb(uint8_t *buf, uint16_t len)
 	rom_addr &= 0xFFF;	/* addr is only 12 bits */
 
 	LOG_INF("Changing address to 0x%x", rom_addr);
-
-	i2c_set_tx(&rom_data[rom_addr], rom_size - rom_addr);
+	i2c_set_tx(rom_data + rom_addr, rom_size - rom_addr);
 }
 
 static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
@@ -64,11 +66,7 @@ static void twis_event_handler(nrfx_twis_evt_t const *const p_event)
 		 * buffers are ready when a read request comes in.
 		 */
 		if (p_event->data.buf_req) {
-			uint16_t len;
-			uint8_t *buf;
-
-			i2c_tx_cb(&buf, &len);
-			(void)nrfx_twis_tx_prepare(&twis_instance, buf, len);
+			i2c_tx_cb();
 		}
 		break;
 
@@ -145,9 +143,19 @@ void init_eeprom(uint8_t *buf, uint16_t size)
 	(void)nrfx_twis_rx_prepare(&twis_instance, twis_rx_buffer, sizeof(twis_rx_buffer));
 	LOG_DBG("eeprom init ok");
 
+	/* Reset address pointer */
+	rom_addr = 0;
+	/* Store addr of external ROM buffer */
+	rom_data = buf;
+
 	/* Make the next read request read from the first EEPROM address. */
 	(void)nrfx_twis_tx_prepare(&twis_instance, rom_data, rom_size);
 
-	/* Reset address pointer */
-	rom_addr = 0;
+}
+
+void set_offset_eeprom(uint16_t offset)
+{
+	rom_addr = offset;
+	LOG_INF("Changing address to 0x%x", rom_addr);
+	i2c_set_tx(rom_data + rom_addr, rom_size - rom_addr);
 }
