@@ -7,7 +7,7 @@
 #include <zephyr/logging/log.h>
 #include "serial.h"
 
-LOG_MODULE_REGISTER(rx_uart, 4);
+LOG_MODULE_REGISTER(rx_uart, 1);
 
 static inline void cleanup_state(struct rx_uart *config)
 {

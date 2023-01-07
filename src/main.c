@@ -121,8 +121,8 @@ void data_received(struct ring_buf *ringbuf, uint16_t len)
 	ring_buf_get(ringbuf, serial_packet, len);
 	pad_program(&serial_packet[len], FV1_PGM_SIZE - len);
 
-	k_sem_give(&serial_data);
 	LOG_HEXDUMP_DBG(serial_packet, sizeof(serial_packet), "buffer");
+	k_sem_give(&serial_data);
 }
 
 static struct rx_uart_header uart_header;
