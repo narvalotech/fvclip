@@ -95,7 +95,7 @@ static void process_ringbuf(struct rx_uart *uart_config)
 
 			if (compute_crc(header, uart_config->ringbuf) == header->crc) {
 				__ASSERT_NO_MSG(uart_config->cb);
-				uart_config->cb(uart_config->ringbuf, header->len);
+				uart_config->cb(uart_config);
 				cleanup_state(uart_config);
 
 				/* Re-trigger processing in case we have another packet pending. */

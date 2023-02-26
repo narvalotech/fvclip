@@ -6,6 +6,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/ring_buffer.h>
+#include <zephyr/drivers/pwm.h>
 
 #include "serial.h"
 #include "eeprom.h"
@@ -112,7 +113,26 @@ RING_BUF_DECLARE(uart_ringbuf, 1024);
 K_SEM_DEFINE(serial_data, 0, 1);
 static uint8_t serial_packet[FV1_PGM_SIZE];
 
-void data_received(struct ring_buf *ringbuf, uint16_t len)
+void set_pwm_channel(uint8_t ch, uint16_t val)
+{
+	const struct device *pwm_dev = DEVICE_DT_GET(DT_ALIAS(pwm_0));
+	uint32_t period = 1024;	/* 10-bit DAC */
+
+	val = MIN(val, period);
+	ch = MIN(ch, 2);
+
+	pwm_set(pwm_dev, ch, PWM_NSEC(period * 10), PWM_NSEC(val * 10), 0);
+	LOG_DBG("set pwm[%d]: %d", ch, val);
+}
+
+void init_pwm(void)
+{
+	set_pwm_channel(0, 0);
+	set_pwm_channel(1, 0);
+	set_pwm_channel(2, 0);
+}
+
+void load_from_serial(struct ring_buf *ringbuf, uint16_t len)
 {
 	/* Saturate length to dest buffer */
 	len = MIN(len, sizeof(serial_packet));
@@ -125,20 +145,63 @@ void data_received(struct ring_buf *ringbuf, uint16_t len)
 	k_sem_give(&serial_data);
 }
 
+void set_pot_values(struct ring_buf *ringbuf, uint16_t len)
+{
+	char tmp[6] = {0};
+
+	len = MIN(len, sizeof(tmp));
+	ring_buf_get(ringbuf, tmp, len);
+
+	__ASSERT(len == 6, "wrong length");
+
+	set_pwm_channel(0, (tmp[0] << 8) + tmp[1]);
+	set_pwm_channel(1, (tmp[2] << 8) + tmp[3]);
+	set_pwm_channel(2, (tmp[4] << 8) + tmp[5]);
+
+	LOG_HEXDUMP_DBG(tmp, sizeof(tmp), "pot values");
+}
+
+void print_bad_data(struct ring_buf *ringbuf, uint16_t len)
+{
+	static char tmp[1000] = {0};
+
+	len = MIN(len, sizeof(tmp));
+	ring_buf_get(ringbuf, tmp, len);
+	LOG_HEXDUMP_WRN(tmp, sizeof(tmp), "unexpected opcode");
+}
+
+static void process_serial(struct rx_uart *config)
+{
+	switch (config->header->opcode) {
+		case OP_LOAD:
+			load_from_serial(config->ringbuf, config->header->len);
+			break;
+		case OP_POT:
+			set_pot_values(config->ringbuf, config->header->len);
+			break;
+		default:
+			LOG_ERR("unexpected opcode 0x%x", config->header->opcode);
+			print_bad_data(config->ringbuf, config->header->len);
+			break;
+	}
+}
+
 static struct rx_uart_header uart_header;
 static struct rx_uart config = {
 	.uart = DEVICE_DT_GET(DT_NODELABEL(uart0)),
 	.header = &uart_header,
 	.ringbuf = &uart_ringbuf,
-	.cb = data_received,
+	.cb = process_serial,
 };
 
 void main(void)
 {
 	LOG_ERR("Bootup");
 
+	init_pwm();
 	serial_init(&config);
 
+	init_i2c();
 	init_eeprom(rom_data, FV1_PGM_SIZE);
 	init_gpios();
 

@@ -18,9 +18,14 @@ struct rx_uart {
 	struct ring_buf *ringbuf;
 
 	/* Called when a packet was successfully received */
-	void (*cb)(struct ring_buf *ringbuf, uint16_t len);
+	void (*cb)(struct rx_uart* config);
 };
 
 int serial_init(struct rx_uart* uart_config);
+
+enum opcodes {
+	OP_LOAD = 0,
+	OP_POT,
+};
 
 #endif /* SERIAL_H_ */

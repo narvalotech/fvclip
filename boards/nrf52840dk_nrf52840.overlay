@@ -1,3 +1,21 @@
+&pinctrl {
+	pwm0_default: pwm0_default {
+		group1 {
+			psels = <NRF_PSEL(PWM_OUT0, 0, 29)>,
+				<NRF_PSEL(PWM_OUT1, 0, 30)>,
+				<NRF_PSEL(PWM_OUT2, 0, 31)>;
+			/delete-property/ nordic,invert;
+		};
+	};
+};
+
+&pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pwm0_default>;
+	/delete-property/ pinctrl-1;
+	pinctrl-names = "default";
+};
+
 &uart0 {
 	compatible = "nordic,nrf-uarte";
 	current-speed = <115200>;
@@ -30,5 +48,8 @@
 	inputs {
 		compatible = "gpio-noinit";
 		gpio_clip {gpios = < &gpio1 7 GPIO_ACTIVE_LOW >;};
+	};
+	aliases {
+		pwm-0 = &pwm0;
 	};
 };
