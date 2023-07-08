@@ -1,0 +1,6 @@
+if BOARD_FVCLIP
+
+config BOARD
+	default "fvclip"
+
+endif # BOARD_FVCLIP

@@ -83,17 +83,17 @@ void init_i2c()
 
 	twis_config.addr[0] = DT_REG_ADDR(DT_NODELABEL(eeprom));
 
-	/* TODO: move to pinctrl */
-	twis_config.scl = DT_PROP(DT_NODELABEL(i2c0), scl_pin);
+	/* TODO: don't hardcode values, use pinctrl + DT macros */
+	twis_config.scl_pin = 31;
 	twis_config.scl_pull = NRF_GPIO_PIN_PULLUP;
 
-	twis_config.sda = DT_PROP(DT_NODELABEL(i2c0), sda_pin);
+	twis_config.sda_pin = 29;
 	twis_config.sda_pull = NRF_GPIO_PIN_PULLUP;
 
 	twis_config.interrupt_priority = DT_IRQ(DT_NODELABEL(i2c0), priority);
 
 	LOG_DBG("I2C Slave: ADDR: 0x%x, SCL: %u, SDA: %u, int_pri: %u",
-	       twis_config.addr[0], twis_config.scl, twis_config.sda, twis_config.interrupt_priority);
+	       twis_config.addr[0], twis_config.scl_pin, twis_config.sda_pin, twis_config.interrupt_priority);
 
 	if (nrfx_twis_init(&twis_instance, &twis_config, twis_event_handler) == NRFX_SUCCESS) {
 		LOG_DBG("nrfx TWIS initialized.");

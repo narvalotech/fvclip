@@ -1,0 +1,3 @@
+config BOARD_FVCLIP
+	bool "FV-1 clip board"
+	depends on SOC_NRF52840_QIAA
