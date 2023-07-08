@@ -4,9 +4,14 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/ring_buffer.h>
+
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
+#include <zephyr/drivers/uart.h>
+
+#include <zephyr/usb/usbd.h>
+#include <zephyr/usb/usb_device.h>
 
 #include "serial.h"
 #include "eeprom.h"
@@ -188,7 +193,7 @@ static void process_serial(struct rx_uart *config)
 
 static struct rx_uart_header uart_header;
 static struct rx_uart config = {
-	.uart = DEVICE_DT_GET(DT_NODELABEL(uart0)),
+	.uart = DEVICE_DT_GET(DT_NODELABEL(cdc_acm_uart0)),
 	.header = &uart_header,
 	.ringbuf = &uart_ringbuf,
 	.cb = process_serial,
@@ -196,6 +201,11 @@ static struct rx_uart config = {
 
 void main(void)
 {
+	if (usb_enable(NULL)) {
+		LOG_ERR("failed to enable USB");
+		return;
+	}
+
 	LOG_ERR("Bootup");
 
 	init_pwm();

@@ -3,4 +3,9 @@ if BOARD_FVCLIP
 config BOARD
 	default "fvclip"
 
+config USB_CDC_ACM_LOG_LEVEL
+	# Get rid of build warning.
+	# The value would still be forced to 0
+	default 0
+
 endif # BOARD_FVCLIP

@@ -69,16 +69,6 @@
 	pinctrl-names = "default";
 };
 
-&uart0 {
-	compatible = "nordic,nrf-uarte";
-	current-speed = <115200>;
-	status = "okay";
-	hw-flow-control;
-	pinctrl-0 = <&uart0_default>;
-	pinctrl-1 = <&uart0_sleep>;
-	pinctrl-names = "default", "sleep";
-};
-
 &i2c0 {
 	compatible = "nordic,nrf-twis";
 	status = "okay";
@@ -139,6 +129,10 @@
 zephyr_udc0: &usbd {
 	compatible = "nordic,nrf-usbd";
 	status = "okay";
+
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
 };
 
 &pinctrl {
@@ -155,29 +149,6 @@ zephyr_udc0: &usbd {
 			psels = <NRF_PSEL(TWIM_SDA, 0, 15)>,
 				<NRF_PSEL(TWIM_SCL, 0, 17)>;
 			bias-pull-up;
-		};
-	};
-
-	/* TODO: remove in favor of USB ACM */
-	uart0_default: uart0_default {
-		group1 {
-			psels = <NRF_PSEL(UART_TX, 0, 6)>,
-				<NRF_PSEL(UART_RTS, 0, 5)>;
-		};
-		group2 {
-			psels = <NRF_PSEL(UART_RX, 0, 8)>,
-				<NRF_PSEL(UART_CTS, 0, 7)>;
-			bias-pull-up;
-		};
-	};
-
-	uart0_sleep: uart0_sleep {
-		group1 {
-			psels = <NRF_PSEL(UART_TX, 0, 6)>,
-				<NRF_PSEL(UART_RX, 0, 8)>,
-				<NRF_PSEL(UART_RTS, 0, 5)>,
-				<NRF_PSEL(UART_CTS, 0, 7)>;
-			low-power-enable;
 		};
 	};
 
