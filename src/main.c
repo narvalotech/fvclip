@@ -32,8 +32,8 @@ enum {
 #define GPIO_S0_PIN DT_PHA(DT_PATH(outputs, gpio_s0), gpios, pin)
 #define GPIO_S1_PIN DT_PHA(DT_PATH(outputs, gpio_s1), gpios, pin)
 #define GPIO_S2_PIN DT_PHA(DT_PATH(outputs, gpio_s2), gpios, pin)
-#define GPIO_EXT_PIN DT_PHA(DT_PATH(outputs, gpio_ext), gpios, pin)
-#define GPIO_CLIP_PIN DT_PHA(DT_PATH(inputs, gpio_clip), gpios, pin)
+/* #define GPIO_EXT_PIN DT_PHA(DT_PATH(outputs, gpio_ext), gpios, pin) */
+/* #define GPIO_CLIP_PIN DT_PHA(DT_PATH(inputs, gpio_clip), gpios, pin) */
 
 void init_gpios(void)
 {
@@ -41,14 +41,15 @@ void init_gpios(void)
 		DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios));
 
 	uint32_t out_flags = GPIO_OUTPUT;
-	uint32_t in_flags = GPIO_INPUT;
+	/* uint32_t in_flags = GPIO_INPUT; */
 
+	/* TODO: configure the rest of the gpios */
 	gpio_pin_configure(port, GPIO_S0_PIN, out_flags);
 	gpio_pin_configure(port, GPIO_S1_PIN, out_flags);
 	gpio_pin_configure(port, GPIO_S2_PIN, out_flags);
-	gpio_pin_configure(port, GPIO_EXT_PIN, out_flags);
+	/* gpio_pin_configure(port, GPIO_EXT_PIN, out_flags); */
 
-	gpio_pin_configure(port, GPIO_CLIP_PIN, in_flags);
+	/* gpio_pin_configure(port, GPIO_CLIP_PIN, in_flags); */
 }
 
 void select_program(uint8_t id)
@@ -69,10 +70,11 @@ void select_program(uint8_t id)
 
 void select_program_source(bool ext)
 {
-	const struct device *port =
-		DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios));
+	/* const struct device *port = */
+	/* 	DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios)); */
 
-	gpio_pin_set(port, GPIO_EXT_PIN, ext);
+	/* TODO: hardwire EXT source (HIGH) on DSP board */
+	/* gpio_pin_set(port, GPIO_EXT_PIN, ext); */
 }
 
 static inline void pad_program(uint8_t * rom_addr, uint16_t pad_bytes)
