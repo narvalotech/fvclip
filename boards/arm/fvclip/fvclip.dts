@@ -100,6 +100,9 @@
 	pinctrl-0 = <&i2c1_default>;
 	pinctrl-names = "default";
 
+	/* Necessary for SSD1306 driver */
+	zephyr,concat-buf-size = <512>;
+
 	mpu6050@68 {
 		compatible = "invensense,mpu6050";
 		reg = <0x68>;
@@ -109,6 +112,7 @@
 
 	tzt_oled: ssd1306@3c {
 		compatible = "solomon,ssd1306fb";
+		status = "okay";
 		reg = <0x3c>;
 		width = <128>;
 		height = <32>;

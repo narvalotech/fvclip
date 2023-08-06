@@ -32,6 +32,8 @@ enum {
 #define GPIO_S0_PIN DT_PHA(DT_PATH(outputs, gpio_s0), gpios, pin)
 #define GPIO_S1_PIN DT_PHA(DT_PATH(outputs, gpio_s1), gpios, pin)
 #define GPIO_S2_PIN DT_PHA(DT_PATH(outputs, gpio_s2), gpios, pin)
+#define GPIO_PA_PWR_PIN DT_PHA(DT_PATH(outputs, gpio_pa_pwr), gpios, pin)
+#define GPIO_OLED_PWR_PIN DT_PHA(DT_PATH(outputs, gpio_oled_pwr), gpios, pin)
 /* #define GPIO_EXT_PIN DT_PHA(DT_PATH(outputs, gpio_ext), gpios, pin) */
 /* #define GPIO_CLIP_PIN DT_PHA(DT_PATH(inputs, gpio_clip), gpios, pin) */
 
@@ -47,8 +49,16 @@ void init_gpios(void)
 	gpio_pin_configure(port, GPIO_S0_PIN, out_flags);
 	gpio_pin_configure(port, GPIO_S1_PIN, out_flags);
 	gpio_pin_configure(port, GPIO_S2_PIN, out_flags);
-	/* gpio_pin_configure(port, GPIO_EXT_PIN, out_flags); */
+	/* gpio_pin_configure(port, GPIO_OLED_PWR_PIN, out_flags); */
+	/* gpio_pin_set(port, GPIO_OLED_PWR_PIN, 0); */
 
+	/* TODO: wrap `port` in a fn/macro */
+	port = DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_pa_pwr), gpios));
+
+	gpio_pin_configure(port, GPIO_PA_PWR_PIN, out_flags);
+	gpio_pin_set(port, GPIO_PA_PWR_PIN, 0);
+
+	/* gpio_pin_configure(port, GPIO_EXT_PIN, out_flags); */
 	/* gpio_pin_configure(port, GPIO_CLIP_PIN, in_flags); */
 }
 
@@ -201,6 +211,8 @@ static struct rx_uart config = {
 	.cb = process_serial,
 };
 
+extern int disp_test(void);
+
 void main(void)
 {
 	if (usb_enable(NULL)) {
@@ -210,12 +222,18 @@ void main(void)
 
 	LOG_ERR("Bootup");
 
+	init_gpios();
+	/* disp_test(); */
+	/* return; */
+
 	init_pwm();
 	serial_init(&config);
 
 	init_i2c();
 	init_eeprom(rom_data, FV1_PGM_SIZE);
-	init_gpios();
+	select_program(1);
+	k_msleep(1000);
+	select_program(0);
 
 	while (1) {
 		/* Wait until we have received fresh data over serial */
@@ -223,3 +241,33 @@ void main(void)
 		load_program(serial_packet, sizeof(serial_packet));
 	}
 }
+
+#pragma GCC optimize("O0")	/* Don't remove the nops */
+static int enable_disp(void)
+{
+	/* Usage of GPIO API causes hardfault. TODO: figure out from which init
+	 * level they can be used, and which of the init level/prio the display
+	 * driver uses.
+	 */
+
+	/* const struct device *port = */
+	/* 	DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios)); */
+
+	/* gpio_pin_configure(port, GPIO_OLED_PWR_PIN, GPIO_OUTPUT); */
+	/* gpio_pin_set(port, GPIO_OLED_PWR_PIN, 0); */
+
+	#define MYPIN 20
+
+	/* Trigger a power-cycle of the display */
+	NRF_P0->DIRSET = (1 << MYPIN);
+	NRF_P0->OUTSET = (1 << MYPIN);
+
+	/* wait long enough, not sure k_sleep works yet */
+	for (int i=0; i<50; i++) __NOP();
+
+	NRF_P0->OUTCLR = (1 << MYPIN);
+
+	return 0;
+}
+
+SYS_INIT(enable_disp, PRE_KERNEL_1, 1);
