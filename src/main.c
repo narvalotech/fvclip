@@ -13,6 +13,9 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/usb/usb_device.h>
 
+#include <nrfx_ppi.h>
+#include <nrfx_gpiote.h>
+
 #include "serial.h"
 #include "eeprom.h"
 
@@ -213,6 +216,52 @@ static struct rx_uart config = {
 
 extern int disp_test(void);
 
+void setup_fv1_clock(void)
+{
+	#define FVCLKPIN 22	/* P0.22 -> DSP GP5 -> FV1 X1 */
+	#define MYTIMER NRF_TIMER3 /* Hopefully free? */
+	#define CLK_HP_US 26   /* ~19kHz TODO: increase */
+	#define GPIOTE_CH_INVALID 0xFF
+	#define PPI_CH_INVALID 0xFF
+
+	/* Use TIMER + PPI + GPIOTE to synthesize a 48kHz clock on DSP GP5. We
+	 * have to play ball and use the HAL allocation fns for PPI / GPIOTE
+	 * since we're running in an RTOS.
+	 */
+
+	/* step 1: configure TIMER */
+	MYTIMER->BITMODE = 0;           /* 16-bit width */
+	MYTIMER->PRESCALER = 4;         /* 1 MHz - 1 us */
+	MYTIMER->MODE = 0;              /* Timer mode */
+	MYTIMER->SHORTS = 1 << 0; /* CC[0] resets the timer value */
+	MYTIMER->CC[0] = CLK_HP_US; /* one tick = half clock cycle */
+
+	/* step 2: configure GPIOTE */
+	uint8_t gch = GPIOTE_CH_INVALID;
+	uint32_t err = nrfx_gpiote_channel_alloc(&gch);
+	__ASSERT_NO_MSG(err == NRFX_SUCCESS);
+	__ASSERT_NO_MSG(gch != GPIOTE_CH_INVALID);
+	NRF_GPIOTE->CONFIG[gch] = 3; /* Task mode */
+	NRF_GPIOTE->CONFIG[gch] |= FVCLKPIN << 8;
+	NRF_GPIOTE->CONFIG[gch] |= 0 << 13; /* Port 0 (line not necessary for P0) */
+	NRF_GPIOTE->CONFIG[gch] |= 3 << 16; /* Toggle pin on TASKS_OUT */
+	NRF_GPIOTE->CONFIG[gch] |= 0 << 20; /* Initial pin value is LOW */
+
+	/* step 3: configure PPI link */
+	uint8_t pch = PPI_CH_INVALID;
+	err = nrfx_ppi_channel_alloc(&pch);
+	__ASSERT_NO_MSG(err == NRFX_SUCCESS);
+	__ASSERT_NO_MSG(pch != PPI_CH_INVALID);
+
+	NRF_PPI->CH[pch].EEP = (uint32_t)&MYTIMER->EVENTS_COMPARE[0];
+	NRF_PPI->CH[pch].TEP = (uint32_t)&NRF_GPIOTE->TASKS_OUT[gch];
+	NRF_PPI->CHENSET = 1 << pch;
+
+	/* step 4: start the timer and output clock on pin */
+	MYTIMER->TASKS_CLEAR = 1;
+	MYTIMER->TASKS_START = 1;
+}
+
 void main(void)
 {
 	if (usb_enable(NULL)) {
@@ -221,6 +270,9 @@ void main(void)
 	}
 
 	LOG_ERR("Bootup");
+
+	setup_fv1_clock();
+	k_msleep(50);
 
 	init_gpios();
 	/* disp_test(); */
