@@ -32,47 +32,37 @@ enum {
 	PGM_EXTERNAL,
 };
 
-#define GPIO_S0_PIN DT_PHA(DT_PATH(outputs, gpio_s0), gpios, pin)
-#define GPIO_S1_PIN DT_PHA(DT_PATH(outputs, gpio_s1), gpios, pin)
-#define GPIO_S2_PIN DT_PHA(DT_PATH(outputs, gpio_s2), gpios, pin)
-#define GPIO_PA_PWR_PIN DT_PHA(DT_PATH(outputs, gpio_pa_pwr), gpios, pin)
 #define GPIO_OLED_PWR_PIN DT_PHA(DT_PATH(outputs, gpio_oled_pwr), gpios, pin)
-/* #define GPIO_EXT_PIN DT_PHA(DT_PATH(outputs, gpio_ext), gpios, pin) */
-/* #define GPIO_CLIP_PIN DT_PHA(DT_PATH(inputs, gpio_clip), gpios, pin) */
+
+#define PORT(n, p) DEVICE_DT_GET(DT_PHANDLE(DT_PATH(n, p), gpios))
+#define PIN(n, p) DT_PHA(DT_PATH(n, p), gpios, pin)
+#define PORT_PIN(n, p) PORT(n, p), PIN(n, p)
 
 void init_gpios(void)
 {
-	const struct device *port =
-		DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios));
-
 	uint32_t out_flags = GPIO_OUTPUT;
 
-	/* TODO: configure the rest of the gpios */
-	gpio_pin_configure(port, GPIO_S0_PIN, out_flags);
-	gpio_pin_configure(port, GPIO_S1_PIN, out_flags);
-	gpio_pin_configure(port, GPIO_S2_PIN, out_flags);
+	/* configure FV-1 program selector pins */
+	gpio_pin_configure(PORT_PIN(outputs, gpio_s0), out_flags);
+	gpio_pin_configure(PORT_PIN(outputs, gpio_s1), out_flags);
+	gpio_pin_configure(PORT_PIN(outputs, gpio_s2), out_flags);
 
-	/* TODO: wrap `port` in a fn/macro */
-	port = DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_pa_pwr), gpios));
-
-	gpio_pin_configure(port, GPIO_PA_PWR_PIN, out_flags);
-	gpio_pin_set(port, GPIO_PA_PWR_PIN, 0);
+	/* enable output audio driver */
+	gpio_pin_configure(PORT_PIN(outputs, gpio_pa_pwr), out_flags);
+	gpio_pin_set(PORT_PIN(outputs, gpio_pa_pwr), 0);
 }
 
 void select_program(uint8_t id)
 {
-	const struct device *port =
-		DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios));
-
 	if (id > 7) {
 		LOG_ERR("Program ID out of bounds (> 7)");
 		return;
 	}
 
 	LOG_INF("select program %u", id);
-	gpio_pin_set(port, GPIO_S0_PIN, id & 1);
-	gpio_pin_set(port, GPIO_S1_PIN, id & 2);
-	gpio_pin_set(port, GPIO_S2_PIN, id & 4);
+	gpio_pin_set(PORT_PIN(outputs, gpio_s0), id & 1);
+	gpio_pin_set(PORT_PIN(outputs, gpio_s1), id & 2);
+	gpio_pin_set(PORT_PIN(outputs, gpio_s2), id & 4);
 }
 
 static inline void pad_program(uint8_t * rom_addr, uint16_t pad_bytes)
@@ -278,32 +268,24 @@ void main(void)
 	}
 }
 
-#pragma GCC optimize("O0")	/* Don't remove the nops */
 static int enable_disp(void)
 {
-	/* Usage of GPIO API causes hardfault. TODO: figure out from which init
-	 * level they can be used, and which of the init level/prio the display
-	 * driver uses.
-	 */
+	/* Power-cycle the display and its driver */
+	gpio_pin_configure(PORT_PIN(outputs, gpio_oled_pwr), GPIO_OUTPUT);
+	gpio_pin_set(PORT_PIN(outputs, gpio_oled_pwr), 1);
 
-	/* const struct device *port = */
-	/* 	DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios)); */
+	k_msleep(50);
 
-	/* gpio_pin_configure(port, GPIO_OLED_PWR_PIN, GPIO_OUTPUT); */
-	/* gpio_pin_set(port, GPIO_OLED_PWR_PIN, 0); */
+	gpio_pin_configure(PORT_PIN(outputs, gpio_oled_pwr), GPIO_OUTPUT);
+	gpio_pin_set(PORT_PIN(outputs, gpio_oled_pwr), 0);
 
-	#define MYPIN 20
-
-	/* Trigger a power-cycle of the display */
-	NRF_P0->DIRSET = (1 << MYPIN);
-	NRF_P0->OUTSET = (1 << MYPIN);
-
-	/* wait long enough, not sure k_sleep works yet */
-	for (int i=0; i<50; i++) __NOP();
-
-	NRF_P0->OUTCLR = (1 << MYPIN);
+	k_msleep(50);
 
 	return 0;
 }
 
-SYS_INIT(enable_disp, PRE_KERNEL_1, 1);
+/* power the display before driver inits */
+#define DISPLAY_POWER_INIT_PRIORITY 70
+BUILD_ASSERT(CONFIG_DISPLAY_INIT_PRIORITY > DISPLAY_POWER_INIT_PRIORITY);
+
+SYS_INIT(enable_disp, POST_KERNEL, DISPLAY_POWER_INIT_PRIORITY);
