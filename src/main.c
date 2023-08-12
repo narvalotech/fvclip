@@ -46,23 +46,17 @@ void init_gpios(void)
 		DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios));
 
 	uint32_t out_flags = GPIO_OUTPUT;
-	/* uint32_t in_flags = GPIO_INPUT; */
 
 	/* TODO: configure the rest of the gpios */
 	gpio_pin_configure(port, GPIO_S0_PIN, out_flags);
 	gpio_pin_configure(port, GPIO_S1_PIN, out_flags);
 	gpio_pin_configure(port, GPIO_S2_PIN, out_flags);
-	/* gpio_pin_configure(port, GPIO_OLED_PWR_PIN, out_flags); */
-	/* gpio_pin_set(port, GPIO_OLED_PWR_PIN, 0); */
 
 	/* TODO: wrap `port` in a fn/macro */
 	port = DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_pa_pwr), gpios));
 
 	gpio_pin_configure(port, GPIO_PA_PWR_PIN, out_flags);
 	gpio_pin_set(port, GPIO_PA_PWR_PIN, 0);
-
-	/* gpio_pin_configure(port, GPIO_EXT_PIN, out_flags); */
-	/* gpio_pin_configure(port, GPIO_CLIP_PIN, in_flags); */
 }
 
 void select_program(uint8_t id)
@@ -79,15 +73,6 @@ void select_program(uint8_t id)
 	gpio_pin_set(port, GPIO_S0_PIN, id & 1);
 	gpio_pin_set(port, GPIO_S1_PIN, id & 2);
 	gpio_pin_set(port, GPIO_S2_PIN, id & 4);
-}
-
-void select_program_source(bool ext)
-{
-	/* const struct device *port = */
-	/* 	DEVICE_DT_GET(DT_PHANDLE(DT_PATH(outputs, gpio_s0), gpios)); */
-
-	/* TODO: hardwire EXT source (HIGH) on DSP board */
-	/* gpio_pin_set(port, GPIO_EXT_PIN, ext); */
 }
 
 static inline void pad_program(uint8_t * rom_addr, uint16_t pad_bytes)
@@ -124,7 +109,6 @@ static void load_program(uint8_t * data, size_t bytes)
 	init_eeprom(rom_addr, FV1_PGM_SIZE);
 
 	/* Trigger a reload from the FV-1 */
-	select_program_source(PGM_EXTERNAL);
 	select_program(id);
 	LOG_INF("activated new program");
 }
