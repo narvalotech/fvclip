@@ -249,8 +249,8 @@ void main(void)
 	k_msleep(50);
 
 	init_gpios();
-	/* disp_test(); */
-	/* return; */
+	disp_test();
+	return;
 
 	init_pwm();
 	serial_init(&config);

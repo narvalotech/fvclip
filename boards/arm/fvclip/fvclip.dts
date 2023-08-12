@@ -101,7 +101,7 @@
 	pinctrl-names = "default";
 
 	/* Necessary for SSD1306 driver */
-	zephyr,concat-buf-size = <512>;
+	zephyr,concat-buf-size = <1024>;
 
 	mpu6050@68 {
 		compatible = "invensense,mpu6050";
