@@ -18,6 +18,7 @@
 
 #include "serial.h"
 #include "eeprom.h"
+#include "view.h"
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main, 4);
@@ -188,8 +189,6 @@ static struct rx_uart config = {
 	.cb = process_serial,
 };
 
-extern int disp_test(void);
-
 void setup_fv1_clock(void)
 {
 	#define FVCLKPIN 22	/* P0.22 -> DSP GP5 -> FV1 X1 */
@@ -249,7 +248,10 @@ void main(void)
 	k_msleep(50);
 
 	init_gpios();
-	disp_test();
+
+	/* test out the display */
+	view_init();
+	draw_view(NULL);
 	return;
 
 	init_pwm();
@@ -288,4 +290,5 @@ static int enable_disp(void)
 #define DISPLAY_POWER_INIT_PRIORITY 70
 BUILD_ASSERT(CONFIG_DISPLAY_INIT_PRIORITY > DISPLAY_POWER_INIT_PRIORITY);
 
+/* would the `reset` dts property do the trick? */
 SYS_INIT(enable_disp, POST_KERNEL, DISPLAY_POWER_INIT_PRIORITY);
