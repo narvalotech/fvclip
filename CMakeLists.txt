@@ -10,5 +10,6 @@ project(fvctl)
 target_sources(app PRIVATE
   src/main.c
   src/disp.c
+  src/input.c
   src/serial.c
   src/eeprom.c)
