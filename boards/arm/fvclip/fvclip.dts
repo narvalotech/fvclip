@@ -49,8 +49,7 @@
 		gpio_gain0 	{gpios = < &gpio1 0 GPIO_ACTIVE_HIGH >;};
 		gpio_gain1 	{gpios = < &gpio0 24 GPIO_ACTIVE_HIGH >;};
 
-		/* TODO: connect PMOS to GPIO5 on DSP board */
-		gpio_dsp_pwr 	{gpios = < &gpio0 22 GPIO_ACTIVE_LOW >;};
+		gpio_dsp_clk 	{gpios = < &gpio0 22 GPIO_ACTIVE_LOW >;};
 		gpio_oled_pwr 	{gpios = < &gpio0 20 GPIO_ACTIVE_LOW >;};
 		gpio_pa_pwr 	{gpios = < &gpio0 2 GPIO_ACTIVE_HIGH >;};
 	};
