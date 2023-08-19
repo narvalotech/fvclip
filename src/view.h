@@ -2,10 +2,10 @@
 #define VIEW_H_
 
 struct viewstate {
-	uint8_t program;
-	uint8_t param;
-	char *names[3];
+	int8_t program;
+	uint8_t active;
 	uint8_t values[3];
+	char names[3][8];
 };
 
 void draw_view(struct viewstate *state);

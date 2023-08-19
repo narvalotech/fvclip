@@ -250,8 +250,15 @@ void main(void)
 	init_gpios();
 
 	/* test out the display */
+	struct viewstate vs = {.program = 07,
+			       .active = 1,
+			       .values[0] = 10,
+			       .values[1] = 20,
+			       .values[2] = 30,
+			       .names = {"param 0", "param 1", "param 2"}};
+
 	view_init();
-	draw_view(NULL);
+	draw_view(&vs);
 	return;
 
 	init_pwm();

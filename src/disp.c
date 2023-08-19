@@ -42,7 +42,7 @@ enum {
 void draw_view(struct viewstate *state)
 {
 	LOG_DBG("");
-
+	char str[20];
 	const struct device *dev =
 		DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 
@@ -50,13 +50,16 @@ void draw_view(struct viewstate *state)
 
 	/* Draw program ID */
 	cfb_framebuffer_set_font(dev, FONT_LARGE);
-	cfb_print(dev, "42", 0, 0);
+	sprintf(str, "%02d", state->program);
+	cfb_print(dev, str, 0, 0);
 
-	/* Draw param 1 */
+	/* Draw params */
 	cfb_framebuffer_set_font(dev, FONT_SMALL);
-	cfb_draw_text(dev, "param 0: 99", 50, 0);
-	cfb_draw_text(dev, "param 1: 10", 50, 10);
-	cfb_draw_text(dev, "param 2: 32", 50, 20);
+	for (int i=0; i<3; i++) {
+		sprintf(str, "%s: %02u", &state->names[i][0], state->values[i]);
+		cfb_draw_text(dev, str, 50, i * 10);
+	}
+
 	/* TODO: invert active */
 
 	/* STATUS:
