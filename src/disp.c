@@ -18,7 +18,7 @@ void view_init(void)
 		k_oops();
 	}
 
-	if (display_set_pixel_format(dev, PIXEL_FORMAT_MONO01) != 0) {
+	if (display_set_pixel_format(dev, PIXEL_FORMAT_MONO10) != 0) {
 		LOG_ERR("Failed to set required pixel format");
 		k_oops();
 	}
@@ -61,7 +61,6 @@ void draw_view(struct viewstate *state)
 
 	/* STATUS:
 	 * - aaaalmost fits: need smaller (bitmap) font for params
-	 * - display is inverted. should be flipped 180 degrees
 	 */
 
 	/* Flush buffer to display */
