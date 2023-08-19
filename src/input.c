@@ -11,4 +11,4 @@ static void input_cb(struct input_event *evt)
 		evt->sync, evt->type, evt->code, evt->value);
 }
 
-INPUT_LISTENER_CB_DEFINE(DEVICE_DT_GET(DT_PATH(encoder)), input_cb);
+INPUT_CALLBACK_DEFINE(DEVICE_DT_GET(DT_PATH(encoder)), input_cb);
