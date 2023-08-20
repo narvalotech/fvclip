@@ -8,6 +8,7 @@ find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
 project(fvctl)
 
 target_sources(app PRIVATE
+  fonts/creep.c
   src/main.c
   src/disp.c
   src/input.c
