@@ -1,9 +1,11 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/display/cfb.h>
 #include <stdio.h>
 
 #include "view.h"
+#include "utils.h"
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(disp, 4);
@@ -71,3 +73,27 @@ void draw_view(struct viewstate *state)
 
 	LOG_DBG("updated");
 }
+
+static int enable_disp(void)
+{
+	/* Power-cycle the display and its driver */
+	gpio_pin_configure(PORT_PIN(outputs, gpio_oled_pwr), GPIO_OUTPUT);
+	gpio_pin_set(PORT_PIN(outputs, gpio_oled_pwr), 1);
+
+	k_msleep(50);
+
+	gpio_pin_configure(PORT_PIN(outputs, gpio_oled_pwr), GPIO_OUTPUT);
+	gpio_pin_set(PORT_PIN(outputs, gpio_oled_pwr), 0);
+
+	k_msleep(50);
+
+	return 0;
+}
+
+/* power the display before driver inits */
+#define DISPLAY_POWER_INIT_PRIORITY 70
+
+BUILD_ASSERT(CONFIG_DISPLAY_INIT_PRIORITY > DISPLAY_POWER_INIT_PRIORITY);
+
+/* would the `reset` dts property do the trick? */
+SYS_INIT(enable_disp, POST_KERNEL, DISPLAY_POWER_INIT_PRIORITY);
