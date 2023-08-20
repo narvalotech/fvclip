@@ -15,6 +15,7 @@
 
 	buttons {
 		compatible = "gpio-keys";
+		status = "okay";
 		button0: button_0 {
 			/* left */
 			gpios = <&gpio1 9 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
