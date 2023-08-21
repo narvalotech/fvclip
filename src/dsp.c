@@ -168,19 +168,34 @@ static void load_program(uint8_t * data, size_t bytes)
 	LOG_INF("activated new program");
 }
 
-static uint8_t program[FV1_PGM_SIZE];
+static uint8_t programs[10][FV1_PGM_SIZE];
 
 void dsp_load_from_serial(struct ring_buf *ringbuf, uint16_t len)
 {
 	/* Saturate length to dest buffer */
-	len = MIN(len, sizeof(program));
+	len = MIN(len, FV1_PGM_SIZE);
 
-	LOG_DBG("store ringbuf len %u splen %u", len, sizeof(program));
+	/* first byte is destination slot */
+	uint8_t index;
+	ring_buf_get(ringbuf, &index, 1);
+	__ASSERT_NO_MSG(index < 10);
+
+	uint8_t *program = &programs[index][index];
+
+	/* TODO: add two opcodes:
+	 * - load-raw: load raw program data as current program
+	 * - load: load prog, with metadata:
+	 *   - parameter names
+	 *   - parameter default values
+	 *   - program name
+	 *   - destination slot
+	 */
+	LOG_DBG("store ringbuf idx %u len %u splen %u", index, len, FV1_PGM_SIZE);
 	ring_buf_get(ringbuf, program, len);
 	pad_program(&program[len], FV1_PGM_SIZE - len);
-	load_program(program, sizeof(program));
+	load_program(program, FV1_PGM_SIZE);
 
-	LOG_HEXDUMP_DBG(program, sizeof(program), "buffer");
+	LOG_HEXDUMP_DBG(program, FV1_PGM_SIZE, "buffer");
 }
 
 void init_dsp(void)
