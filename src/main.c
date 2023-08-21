@@ -4,6 +4,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
+#include <zephyr/input/input.h>
 #include <zephyr/sys/ring_buffer.h>
 
 #include <zephyr/drivers/gpio.h>
@@ -19,7 +20,14 @@
 #include "view.h"
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(main, 4);
+LOG_MODULE_REGISTER(main, 3);
+
+static struct viewstate vs = {.program = 07,
+.active = 1,
+.values[0] = 10,
+.values[1] = 20,
+.values[2] = 30,
+.names = {"par 0", "par 1", "par 2"}};
 
 static void init_pa(void)
 {
@@ -30,6 +38,62 @@ static void init_pa(void)
 	gpio_pin_set(PORT_PIN(outputs, gpio_pa_pwr), 0);
 }
 
+static void next_program(int increment)
+{
+	vs.program += increment;
+	if (vs.program > 99) vs.program = 99;
+	if (vs.program < 0) vs.program = 0;
+}
+
+static void next_param(void)
+{
+	vs.active++;
+	/* overflow's a good thing, right? */
+	if (vs.active > 2) vs.active = 0xFF;
+}
+
+static void tune_param(int increment)
+{
+	if (vs.active == 0xFF) return; /* no active param */
+
+	int8_t *param = &vs.values[vs.active];
+
+	*param += increment;
+	if (*param > 99) *param = 99;
+	if (*param < 0) *param = 0;
+}
+
+static void input_cb(struct input_event *evt)
+{
+	LOG_DBG("%s: sync %u type %u code 0x%x value %d", __func__,
+		evt->sync, evt->type, evt->code, evt->value);
+
+	/* encoder */
+	if (evt->code == INPUT_REL_Y) {
+		tune_param(evt->value);
+	}
+
+	/* right */
+	if (evt->code == INPUT_KEY_0 && evt->value) {
+		next_program(+1);
+	}
+
+	/* left */
+	if (evt->code == INPUT_KEY_2 && evt->value) {
+		next_program(-1);
+	}
+
+	/* mid */
+	if (evt->code == INPUT_KEY_1 && evt->value) {
+		next_param();
+	}
+
+	draw_view(&vs);
+}
+
+/* Invoke callback for all input devices */
+INPUT_CALLBACK_DEFINE(NULL, input_cb);
+
 void main(void)
 {
 	if (usb_enable(NULL)) {
@@ -37,21 +101,12 @@ void main(void)
 		return;
 	}
 
-	LOG_ERR("Bootup");
+	LOG_INF("Bootup");
 
 	init_dsp();
 	init_pa();
-
-	/* test out the display */
-	struct viewstate vs = {.program = 07,
-			       .active = 1,
-			       .values[0] = 10,
-			       .values[1] = 20,
-			       .values[2] = 30,
-			       .names = {"param 0", "param 1", "param 2"}};
+	serial_init();
 
 	view_init();
 	draw_view(&vs);
-
-	serial_init();
 }

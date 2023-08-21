@@ -8,7 +8,7 @@
 #include "utils.h"
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(disp, 4);
+LOG_MODULE_REGISTER(disp, 3);
 
 void view_init(void)
 {
@@ -36,7 +36,8 @@ void view_init(void)
 }
 
 enum {
-	FONT_SMALL = 0,
+	FONT_TINY = 0,
+	FONT_SMALL,
 	FONT_MEDIUM,
 	FONT_LARGE
 };
@@ -56,17 +57,19 @@ void draw_view(struct viewstate *state)
 	cfb_print(dev, str, 0, 0);
 
 	/* Draw params */
-	cfb_framebuffer_set_font(dev, FONT_SMALL);
+	cfb_framebuffer_set_font(dev, FONT_TINY);
 	for (int i=0; i<3; i++) {
 		sprintf(str, "%s: %02u", &state->names[i][0], state->values[i]);
 		cfb_draw_text(dev, str, 50, i * 10);
 	}
 
-	/* TODO: invert active */
+	uint8_t w, h;
+	cfb_get_font_size(dev, FONT_TINY, &w, &h);
 
-	/* STATUS:
-	 * - aaaalmost fits: need smaller (bitmap) font for params
-	 */
+	/* invert active param */
+	if (state->active != 0xFF) {
+		cfb_invert_area(dev, 50, state->active * 10, 128 - 50, h-4);
+	}
 
 	/* Flush buffer to display */
 	cfb_framebuffer_finalize(dev);

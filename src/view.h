@@ -4,7 +4,7 @@
 struct viewstate {
 	int8_t program;
 	uint8_t active;
-	uint8_t values[3];
+	int8_t values[3];
 	char names[3][8];
 };
 
