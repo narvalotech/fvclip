@@ -82,7 +82,7 @@ static void init_gpios(void)
 	gpio_pin_configure(PORT_PIN(outputs, gpio_s2), out_flags);
 }
 
-void set_pwm_channel(uint8_t ch, uint16_t val)
+static void set_pwm_channel(uint8_t ch, uint16_t val)
 {
 	const struct device *pwm_dev = DEVICE_DT_GET(DT_ALIAS(pwm_0));
 	uint32_t period = 1024;	/* 10-bit DAC */
@@ -94,14 +94,14 @@ void set_pwm_channel(uint8_t ch, uint16_t val)
 	LOG_DBG("set pwm[%d]: %d", ch, val);
 }
 
-void init_pwm(void)
+static void init_pwm(void)
 {
 	set_pwm_channel(0, 0);
 	set_pwm_channel(1, 0);
 	set_pwm_channel(2, 0);
 }
 
-void set_pot_values(struct ring_buf *ringbuf, uint16_t len)
+void dsp_set_pot_values(struct ring_buf *ringbuf, uint16_t len)
 {
 	char tmp[6] = {0};
 
@@ -117,7 +117,7 @@ void set_pot_values(struct ring_buf *ringbuf, uint16_t len)
 	LOG_HEXDUMP_DBG(tmp, sizeof(tmp), "pot values");
 }
 
-void select_program(uint8_t id)
+static void select_program(uint8_t id)
 {
 	if (id > 7) {
 		LOG_ERR("Program ID out of bounds (> 7)");
@@ -168,23 +168,25 @@ static void load_program(uint8_t * data, size_t bytes)
 	LOG_INF("activated new program");
 }
 
-static uint8_t serial_packet[FV1_PGM_SIZE];
+static uint8_t program[FV1_PGM_SIZE];
 
-void load_from_serial(struct ring_buf *ringbuf, uint16_t len)
+void dsp_load_from_serial(struct ring_buf *ringbuf, uint16_t len)
 {
 	/* Saturate length to dest buffer */
-	len = MIN(len, sizeof(serial_packet));
+	len = MIN(len, sizeof(program));
 
-	LOG_DBG("store ringbuf len %u splen %u", len, sizeof(serial_packet));
-	ring_buf_get(ringbuf, serial_packet, len);
-	pad_program(&serial_packet[len], FV1_PGM_SIZE - len);
-	load_program(serial_packet, sizeof(serial_packet));
+	LOG_DBG("store ringbuf len %u splen %u", len, sizeof(program));
+	ring_buf_get(ringbuf, program, len);
+	pad_program(&program[len], FV1_PGM_SIZE - len);
+	load_program(program, sizeof(program));
 
-	LOG_HEXDUMP_DBG(serial_packet, sizeof(serial_packet), "buffer");
+	LOG_HEXDUMP_DBG(program, sizeof(program), "buffer");
 }
 
 void init_dsp(void)
 {
+	LOG_DBG("");
+
 	init_pwm();
 	init_gpios();
 
@@ -194,4 +196,6 @@ void init_dsp(void)
 	k_msleep(50);
 
 	load_program((uint8_t *)samples_00, sizeof(samples_00));
+
+	LOG_INF("DSP init ok");
 }
