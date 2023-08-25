@@ -206,11 +206,11 @@ void init_dsp(void)
 	init_gpios();
 
 	init_i2c();
+	/* prepare the ROM buffer that the FV1 will read on boot */
+	load_program((uint8_t *)samples_00, sizeof(samples_00));
 
 	setup_dsp_clock();
 	k_msleep(50);
-
-	load_program((uint8_t *)samples_00, sizeof(samples_00));
 
 	LOG_INF("DSP init ok");
 }
