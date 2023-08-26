@@ -17,8 +17,7 @@
 LOG_MODULE_REGISTER(dsp, 4);
 
 #define FV1_PGM_SIZE 512
-#define EEPROM_SIZE (FV1_PGM_SIZE * 2)
-static uint8_t rom_data[EEPROM_SIZE];
+static uint8_t programs[10][FV1_PGM_SIZE];
 static uint8_t active_id;
 
 enum {
@@ -117,7 +116,7 @@ void dsp_set_pot_values(struct ring_buf *ringbuf, uint16_t len)
 	LOG_HEXDUMP_DBG(tmp, sizeof(tmp), "pot values");
 }
 
-static void select_program(uint8_t id)
+static void select_rom_slot(uint8_t id)
 {
 	if (id > 7) {
 		LOG_ERR("Program ID out of bounds (> 7)");
@@ -147,28 +146,22 @@ static inline void pad_program(uint8_t * rom_addr, uint16_t pad_bytes)
 	LOG_INF("padded %u bytes", pad_bytes);
 }
 
-static void load_program(uint8_t * data, size_t bytes)
+static void load_program(uint8_t * data)
 {
-	/* Write to the program bank not in use */
+	/* This ID shuffling is just make the FV-1 read the new ROM */
 	uint8_t id = active_id ? 0 : 1;
 	active_id = id;
 
-	__ASSERT_NO_MSG(bytes <= FV1_PGM_SIZE);
-
-	uint8_t *rom_addr = rom_data + (id * FV1_PGM_SIZE);
-	memcpy(rom_addr, data, bytes);
-
-	LOG_INF("loaded %p into ROM bank %u", (void*)data, id);
+	LOG_INF("loading %p", (void*)data);
 
 	/* Tell EEPROM emulator to use the new bank */
-	init_eeprom(rom_addr, FV1_PGM_SIZE);
+	init_eeprom(data, FV1_PGM_SIZE);
 
 	/* Trigger a reload from the FV-1 */
-	select_program(id);
-	LOG_INF("activated new program");
+	select_rom_slot(active_id);
+	LOG_INF("program downloaded");
+	/* That's not really true, it's downloaded later over I2C */
 }
-
-static uint8_t programs[10][FV1_PGM_SIZE];
 
 void dsp_load_from_serial(struct ring_buf *ringbuf, uint16_t len)
 {
@@ -180,7 +173,8 @@ void dsp_load_from_serial(struct ring_buf *ringbuf, uint16_t len)
 	ring_buf_get(ringbuf, &index, 1);
 	__ASSERT_NO_MSG(index < 10);
 
-	uint8_t *program = &programs[index][index];
+	/* TODO: protect with sem/mutex */
+	uint8_t *program = &programs[index][0];
 
 	/* TODO: add two opcodes:
 	 * - load-raw: load raw program data as current program
@@ -193,9 +187,17 @@ void dsp_load_from_serial(struct ring_buf *ringbuf, uint16_t len)
 	LOG_DBG("store ringbuf idx %u len %u splen %u", index, len, FV1_PGM_SIZE);
 	ring_buf_get(ringbuf, program, len);
 	pad_program(&program[len], FV1_PGM_SIZE - len);
-	load_program(program, FV1_PGM_SIZE);
 
-	LOG_HEXDUMP_DBG(program, FV1_PGM_SIZE, "buffer");
+	load_program(program);
+
+	LOG_HEXDUMP_DBG(program, FV1_PGM_SIZE, "RAW ROM");
+}
+
+void dsp_select_program(uint8_t id)
+{
+	if (id > 9) return;
+
+	load_program(&programs[id][0]);
 }
 
 void init_dsp(void)
@@ -206,8 +208,9 @@ void init_dsp(void)
 	init_gpios();
 
 	init_i2c();
+
 	/* prepare the ROM buffer that the FV1 will read on boot */
-	load_program((uint8_t *)samples_00, sizeof(samples_00));
+	load_program((uint8_t *)samples_00);
 
 	setup_dsp_clock();
 	k_msleep(50);

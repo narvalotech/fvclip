@@ -43,6 +43,8 @@ static void next_program(int increment)
 	vs.program += increment;
 	if (vs.program > 99) vs.program = 99;
 	if (vs.program < 0) vs.program = 0;
+
+	dsp_select_program(vs.program);
 }
 
 static void next_param(void)
