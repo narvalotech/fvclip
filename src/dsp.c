@@ -81,7 +81,7 @@ static void init_gpios(void)
 	gpio_pin_configure(PORT_PIN(outputs, gpio_s2), out_flags);
 }
 
-static void set_pwm_channel(uint8_t ch, uint16_t val)
+void dsp_set_pwm_channel(uint8_t ch, uint16_t val)
 {
 	const struct device *pwm_dev = DEVICE_DT_GET(DT_ALIAS(pwm_0));
 	uint32_t period = 1024;	/* 10-bit DAC */
@@ -95,9 +95,9 @@ static void set_pwm_channel(uint8_t ch, uint16_t val)
 
 static void init_pwm(void)
 {
-	set_pwm_channel(0, 0);
-	set_pwm_channel(1, 0);
-	set_pwm_channel(2, 0);
+	dsp_set_pwm_channel(0, 0);
+	dsp_set_pwm_channel(1, 0);
+	dsp_set_pwm_channel(2, 0);
 }
 
 void dsp_set_pot_values(struct ring_buf *ringbuf, uint16_t len)
@@ -109,9 +109,9 @@ void dsp_set_pot_values(struct ring_buf *ringbuf, uint16_t len)
 
 	__ASSERT(len == 6, "wrong length");
 
-	set_pwm_channel(0, (tmp[0] << 8) + tmp[1]);
-	set_pwm_channel(1, (tmp[2] << 8) + tmp[3]);
-	set_pwm_channel(2, (tmp[4] << 8) + tmp[5]);
+	dsp_set_pwm_channel(0, (tmp[0] << 8) + tmp[1]);
+	dsp_set_pwm_channel(1, (tmp[2] << 8) + tmp[3]);
+	dsp_set_pwm_channel(2, (tmp[4] << 8) + tmp[5]);
 
 	LOG_HEXDUMP_DBG(tmp, sizeof(tmp), "pot values");
 }
