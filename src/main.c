@@ -64,7 +64,7 @@ static void tune_param(int increment)
 	if (*param > 99) *param = 99;
 	if (*param < 0) *param = 0;
 
-	dsp_set_pwm_channel(vs.active, *param);
+	dsp_set_pwm_channel(vs.active, *param * 10);
 }
 
 static void input_cb(struct input_event *evt)
