@@ -200,9 +200,23 @@ void dsp_select_program(uint8_t id)
 	load_program(&programs[id][0]);
 }
 
+static void load_default_programs(void)
+{
+	memcpy(&programs[0][0], samples_00, FV1_PGM_SIZE);
+	memcpy(&programs[1][0], samples_01, FV1_PGM_SIZE);
+	memcpy(&programs[2][0], samples_02, FV1_PGM_SIZE);
+	memcpy(&programs[3][0], samples_03, FV1_PGM_SIZE);
+	memcpy(&programs[4][0], samples_04, FV1_PGM_SIZE);
+	memcpy(&programs[5][0], samples_05, FV1_PGM_SIZE);
+	memcpy(&programs[6][0], samples_06, FV1_PGM_SIZE);
+	memcpy(&programs[7][0], samples_07, FV1_PGM_SIZE);
+}
+
 void init_dsp(void)
 {
 	LOG_DBG("");
+
+	load_default_programs();
 
 	init_pwm();
 	init_gpios();
