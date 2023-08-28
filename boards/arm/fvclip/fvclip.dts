@@ -203,8 +203,9 @@ zephyr_udc0: &usbd {
 
 	pwm0_default: pwm0_default {
 		group1 {
-			psels = <NRF_PSEL(PWM_OUT0, 1, 10)>,
-				<NRF_PSEL(PWM_OUT1, 1, 15)>,
+			/* POT0 and POT1 are swapped on the DSP board */
+			psels = <NRF_PSEL(PWM_OUT0, 1, 15)>,
+				<NRF_PSEL(PWM_OUT1, 1, 10)>,
 				<NRF_PSEL(PWM_OUT2, 1, 13)>;
 			/delete-property/ nordic,invert;
 		};
